@@ -1,0 +1,26 @@
+## .NET / Visual Studio
+bin/
+obj/
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+## Local App Data & Config
+config.json
+crash.log
+scratch/
+
+## User-specific files
+*.rsuser
+*.suo
+*.user
+*.userhost
+*.sln.docstates
+
+## Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
