@@ -4,6 +4,8 @@
              StartupUri="UI/Views/MainWindow.xaml">
     <Application.Resources>
         <ResourceDictionary>
+            <BooleanToVisibilityConverter x:Key="BoolToVisConverter" />
+
             <!-- Palette Thème Sombre -->
             <SolidColorBrush x:Key="BgDark" Color="#121218" />
             <SolidColorBrush x:Key="BgCard" Color="#1E1E2A" />

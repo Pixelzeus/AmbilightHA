@@ -20,7 +20,10 @@ public static class ConfigurationService
                 if (config != null) return config;
             }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[ConfigurationService] Failed to load config: {ex.Message}");
+        }
 
         return new AppConfig();
     }
@@ -33,6 +36,9 @@ public static class ConfigurationService
             string json = JsonSerializer.Serialize(config, options);
             File.WriteAllText(ConfigPath, json);
         }
-        catch { }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[ConfigurationService] Failed to save config: {ex.Message}");
+        }
     }
 }

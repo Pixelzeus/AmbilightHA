@@ -79,10 +79,11 @@
                         <DockPanel>
                             <DockPanel DockPanel.Dock="Top" Margin="0,0,0,12">
                                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-                                    <Button Content="➕ Ajouter une entité" Command="{Binding AddEntityCommand}" Background="{StaticResource SuccessColor}" Foreground="White" Padding="10,6" FontSize="11" FontWeight="Bold" Margin="0,0,8,0" Cursor="Hand"/>
+                                    <Button Content="➕ Ajouter une ampoule" Command="{Binding AddEntityCommand}" Background="{StaticResource SuccessColor}" Foreground="White" Padding="10,6" FontSize="11" FontWeight="Bold" Margin="0,0,6,0" Cursor="Hand" ToolTip="Ajouter une seule ampoule au mapping"/>
+                                    <Button Content="➕➕ Lot de 3 (G / C / D)" Command="{Binding AddMultipleEntitiesCommand}" Background="#00A8FF" Foreground="White" Padding="10,6" FontSize="11" FontWeight="Bold" Margin="0,0,6,0" Cursor="Hand" ToolTip="Ajouter rapidement un lot de 3 ampoules (Gauche, Centre, Droite)"/>
                                     <Button Content="👁️ Overlay Zones" Command="{Binding ToggleOverlayCommand}" Background="#2D2B55" Foreground="Cyan" Padding="10,6" FontSize="11" FontWeight="Bold" Cursor="Hand"/>
                                 </StackPanel>
-                                <TextBlock Text="💡 Configuration des Entités Lumineuses &amp; Sélection des Zones" FontWeight="Bold" FontSize="14" Foreground="{StaticResource AccentColor}" VerticalAlignment="Center"/>
+                                <TextBlock Text="💡 Configuration des Équipements Lumineux &amp; Zones" FontWeight="Bold" FontSize="14" Foreground="{StaticResource AccentColor}" VerticalAlignment="Center"/>
                             </DockPanel>
 
                             <ScrollViewer VerticalScrollBarVisibility="Auto">
@@ -92,35 +93,51 @@
                                             <Border Background="#1A1A24" CornerRadius="6" Padding="10" Margin="0,0,0,8" BorderThickness="1" BorderBrush="#2A2A38">
                                                 <Grid>
                                                     <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="40" />
-                                                        <ColumnDefinition Width="280" />
+                                                        <ColumnDefinition Width="36" />
+                                                        <ColumnDefinition Width="200" />
+                                                        <ColumnDefinition Width="260" />
                                                         <ColumnDefinition Width="*" />
                                                         <ColumnDefinition Width="40" />
                                                     </Grid.ColumnDefinitions>
 
                                                     <!-- Aperçu Couleur Réelle -->
-                                                    <Border Grid.Column="0" Width="28" Height="28" CornerRadius="14" HorizontalAlignment="Left">
+                                                    <Border Grid.Column="0" Width="26" Height="26" CornerRadius="13" HorizontalAlignment="Left" VerticalAlignment="Center">
                                                         <Border.Background>
                                                             <SolidColorBrush Color="{Binding PreviewColor}" />
                                                         </Border.Background>
                                                     </Border>
 
-                                                    <!-- Champ Entité HA -->
-                                                    <StackPanel Grid.Column="1" Margin="0,0,12,0">
-                                                        <TextBlock Text="Entité Light / Sensor HA:" FontSize="10" Foreground="{StaticResource TextSecondary}" Margin="0,0,0,2"/>
-                                                        <TextBox Text="{Binding EntityId, UpdateSourceTrigger=PropertyChanged}" Background="#101018" Foreground="#00FFCC" Padding="6" BorderThickness="1" BorderBrush="#333"/>
+                                                    <!-- Type d'Équipement -->
+                                                    <StackPanel Grid.Column="1" Margin="0,0,10,0">
+                                                        <TextBlock Text="Type d'équipement:" FontSize="10" Foreground="{StaticResource TextSecondary}" Margin="0,0,0,2"/>
+                                                        <ComboBox ItemsSource="{Binding AvailableDeviceTypes}" SelectedItem="{Binding SelectedDeviceType}" DisplayMemberPath="Name" Background="#101018" Foreground="White" Padding="6"/>
+                                                    </StackPanel>
+
+                                                    <!-- Champ Cible (Entité HA ou IP WLED) -->
+                                                    <StackPanel Grid.Column="2" Margin="0,0,10,0">
+                                                        <TextBlock Text="{Binding TargetLabel}" FontSize="10" Foreground="{StaticResource TextSecondary}" Margin="0,0,0,2"/>
+                                                        <Grid>
+                                                            <TextBox x:Name="TxtEntity" Text="{Binding EntityId, UpdateSourceTrigger=PropertyChanged}" Background="#101018" Foreground="#00FFCC" Padding="6" BorderThickness="1" BorderBrush="#333"/>
+                                                            <TextBox x:Name="TxtWledIp" Text="{Binding WledIpAddress, UpdateSourceTrigger=PropertyChanged}" Background="#101018" Foreground="#FFCC00" Padding="6" BorderThickness="1" BorderBrush="#333" Visibility="Collapsed"/>
+                                                        </Grid>
                                                     </StackPanel>
 
                                                     <!-- Liste Déroulante Sélection Zone -->
-                                                    <StackPanel Grid.Column="2" Margin="0,0,12,0">
+                                                    <StackPanel Grid.Column="3" Margin="0,0,10,0">
                                                         <TextBlock Text="Zone d'écran associée:" FontSize="10" Foreground="{StaticResource TextSecondary}" Margin="0,0,0,2"/>
                                                         <ComboBox ItemsSource="{Binding AvailableZones}" SelectedItem="{Binding SelectedZone}" DisplayMemberPath="Name" Background="#101018" Foreground="White" Padding="6"/>
                                                     </StackPanel>
 
                                                     <!-- Bouton Supprimer -->
-                                                    <Button Grid.Column="3" Content="❌" Command="{Binding DataContext.RemoveEntityCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" Background="Transparent" Foreground="#FF5555" BorderThickness="0" FontSize="14" VerticalAlignment="Center" Cursor="Hand" ToolTip="Retirer cette entité"/>
+                                                    <Button Grid.Column="4" Content="❌" Command="{Binding DataContext.RemoveEntityCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" Background="Transparent" Foreground="#FF5555" BorderThickness="0" FontSize="14" VerticalAlignment="Center" Cursor="Hand" ToolTip="Retirer cette entité"/>
                                                 </Grid>
                                             </Border>
+                                            <DataTemplate.Triggers>
+                                                <DataTrigger Binding="{Binding IsWledUdpMode}" Value="True">
+                                                    <Setter TargetName="TxtEntity" Property="Visibility" Value="Collapsed"/>
+                                                    <Setter TargetName="TxtWledIp" Property="Visibility" Value="Visible"/>
+                                                </DataTrigger>
+                                            </DataTemplate.Triggers>
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>

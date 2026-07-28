@@ -55,9 +55,17 @@ public static class SimdColorCalculator
                     float saturation = max > 0.001f ? (delta / max) : 0f;
 
                     // Pondération exponentielle par la saturation
-                    // Un pixel gris (S ~ 0) reçoit un poids proche de 0.01
-                    // Un pixel très vivement coloré (S ~ 1) reçoit un poids élevé (1.0)
-                    double weight = Math.Pow(saturation, accentWeightExponent) + 0.02;
+                    // Un pixel gris (S ~ 0) reçoit un poids proche de 0.02
+                    // Un pixel très vivement coloré (S ~ 1) reçoit un poids élevé (1.02)
+                    double satWeight = accentWeightExponent switch
+                    {
+                        1.0f => saturation,
+                        2.0f => saturation * saturation,
+                        3.0f => saturation * saturation * saturation,
+                        _ => Math.Pow(saturation, accentWeightExponent)
+                    };
+
+                    double weight = satWeight + 0.02;
 
                     sumR += r * weight;
                     sumG += g * weight;

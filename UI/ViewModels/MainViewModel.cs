@@ -176,6 +176,26 @@ public class MainViewModel : ObservableObject
         }
     }
 
+    private bool _isBusy;
+
+    public bool IsBusy
+    {
+        get => _isBusy;
+        private set
+        {
+            if (SetProperty(ref _isBusy, value))
+            {
+                OnPropertyChanged(nameof(CanStart));
+                OnPropertyChanged(nameof(CanStop));
+                _uiDispatcher.InvokeAsync(() =>
+                {
+                    (StartCommand as RelayCommand)?.RaiseCanExecuteChanged();
+                    (StopCommand as RelayCommand)?.RaiseCanExecuteChanged();
+                });
+            }
+        }
+    }
+
     public bool IsRunning
     {
         get => _isRunning;
@@ -200,8 +220,8 @@ public class MainViewModel : ObservableObject
         set => SetProperty(ref _isOverlayVisible, value);
     }
 
-    public bool CanStart => !IsRunning;
-    public bool CanStop => IsRunning;
+    public bool CanStart => !IsRunning && !IsBusy;
+    public bool CanStop => IsRunning && !IsBusy;
 
     public string StatusMessage
     {
@@ -220,6 +240,7 @@ public class MainViewModel : ObservableObject
     public ICommand SaveConfigCommand { get; }
     public ICommand ToggleOverlayCommand { get; }
     public ICommand AddEntityCommand { get; }
+    public ICommand AddMultipleEntitiesCommand { get; }
     public ICommand RemoveEntityCommand { get; }
 
     public MainViewModel()
@@ -240,6 +261,7 @@ public class MainViewModel : ObservableObject
         SaveConfigCommand = new RelayCommand(SaveConfig);
         ToggleOverlayCommand = new RelayCommand(ToggleOverlay);
         AddEntityCommand = new RelayCommand(AddEntity);
+        AddMultipleEntitiesCommand = new RelayCommand(AddMultipleEntities);
         RemoveEntityCommand = new RelayCommand<ZoneMappingItemViewModel>(RemoveEntity);
     }
 
@@ -267,7 +289,12 @@ public class MainViewModel : ObservableObject
         {
             foreach (var savedConfig in _config.Mappings)
             {
-                ZoneMappings.Add(new ZoneMappingItemViewModel(savedConfig.EntityId, savedConfig.ZoneType));
+                ZoneMappings.Add(new ZoneMappingItemViewModel(
+                    savedConfig.EntityId,
+                    savedConfig.ZoneType,
+                    savedConfig.DeviceType,
+                    savedConfig.WledIpAddress
+                ));
             }
         }
         else
@@ -285,6 +312,15 @@ public class MainViewModel : ObservableObject
         AppendLog("Nouvelle entité lumineuse ajoutée au mapping.");
     }
 
+    private void AddMultipleEntities()
+    {
+        int countBefore = ZoneMappings.Count;
+        ZoneMappings.Add(new ZoneMappingItemViewModel($"light.ampoule_gauche_{countBefore + 1}", ZoneType.Left));
+        ZoneMappings.Add(new ZoneMappingItemViewModel($"light.ampoule_centre_{countBefore + 2}", ZoneType.Global));
+        ZoneMappings.Add(new ZoneMappingItemViewModel($"light.ampoule_droite_{countBefore + 3}", ZoneType.Right));
+        AppendLog("Lot de 3 nouvelles entités lumineuses (Gauche, Centre, Droite) ajouté.");
+    }
+
     private void RemoveEntity(ZoneMappingItemViewModel? item)
     {
         if (item != null && ZoneMappings.Contains(item))
@@ -296,48 +332,75 @@ public class MainViewModel : ObservableObject
 
     private async void ExecuteStart()
     {
+        if (IsBusy || IsRunning) return;
         if (string.IsNullOrWhiteSpace(HaUrl) || string.IsNullOrWhiteSpace(HaToken))
         {
             StatusMessage = "Erreur: URL Home Assistant et Token obligatoires !";
             return;
         }
 
-        SaveConfig();
-
-        _orchestrator.Mappings.Clear();
-        foreach (var vm in ZoneMappings)
+        IsBusy = true;
+        try
         {
-            if (!string.IsNullOrWhiteSpace(vm.EntityId))
+            SaveConfig();
+
+            lock (_orchestrator.Mappings)
             {
-                _orchestrator.Mappings.Add(new ZoneLightMapping(vm.SelectedZone, vm.EntityId));
+                _orchestrator.Mappings.Clear();
+                foreach (var vm in ZoneMappings)
+                {
+                    string target = vm.DeviceType == LightDeviceType.WledDirectUdp ? vm.WledIpAddress : vm.EntityId;
+                    if (!string.IsNullOrWhiteSpace(target))
+                    {
+                        _orchestrator.Mappings.Add(new ZoneLightMapping(
+                            vm.SelectedZone,
+                            vm.EntityId,
+                            vm.DeviceType,
+                            vm.WledIpAddress
+                        ));
+                    }
+                }
             }
+
+            _orchestrator.Mode = SelectedAnalysisMode.Mode;
+            _orchestrator.AccentWeightExponent = AccentWeightExponent;
+            _orchestrator.Saturation = Saturation;
+            _orchestrator.Brightness = Brightness;
+            _orchestrator.Gamma = Gamma;
+            _orchestrator.MinBrightness = MinBrightness;
+            _orchestrator.TransitionSeconds = TransitionSeconds;
+            _orchestrator.TargetFps = TargetFps;
+            _orchestrator.RateLimitPerBulb = RateLimitPerBulb;
+            _orchestrator.DisplayIndex = DisplayIndex;
+            _orchestrator.RestoreLightsOnStop = RestoreLightsOnStop;
+
+            StatusMessage = "Connexion à Home Assistant et démarrage...";
+            await _orchestrator.StartAsync(HaUrl, HaToken);
+
+            IsRunning = _orchestrator.IsRunning;
+            StatusMessage = IsRunning ? $"Moteur Ambilight Actif ({SelectedAnalysisMode.Name})" : "Échec du démarrage.";
         }
-
-        _orchestrator.Mode = SelectedAnalysisMode.Mode;
-        _orchestrator.AccentWeightExponent = AccentWeightExponent;
-        _orchestrator.Saturation = Saturation;
-        _orchestrator.Brightness = Brightness;
-        _orchestrator.Gamma = Gamma;
-        _orchestrator.MinBrightness = MinBrightness;
-        _orchestrator.TransitionSeconds = TransitionSeconds;
-        _orchestrator.TargetFps = TargetFps;
-        _orchestrator.RateLimitPerBulb = RateLimitPerBulb;
-        _orchestrator.DisplayIndex = DisplayIndex;
-        _orchestrator.RestoreLightsOnStop = RestoreLightsOnStop;
-
-        StatusMessage = "Connexion à Home Assistant et démarrage...";
-        await _orchestrator.StartAsync(HaUrl, HaToken);
-
-        IsRunning = _orchestrator.IsRunning;
-        StatusMessage = IsRunning ? $"Moteur Ambilight Actif ({SelectedAnalysisMode.Name})" : "Échec du démarrage.";
+        finally
+        {
+            IsBusy = false;
+        }
     }
 
     private async void ExecuteStop()
     {
-        StatusMessage = "Arrêt en cours...";
-        await _orchestrator.StopAsync();
-        IsRunning = false;
-        StatusMessage = "Moteur Ambilight Arrêté.";
+        if (IsBusy || !IsRunning) return;
+        IsBusy = true;
+        try
+        {
+            StatusMessage = "Arrêt en cours...";
+            await _orchestrator.StopAsync();
+            IsRunning = false;
+            StatusMessage = "Moteur Ambilight Arrêté.";
+        }
+        finally
+        {
+            IsBusy = false;
+        }
     }
 
     private void SaveConfig()
@@ -359,7 +422,9 @@ public class MainViewModel : ObservableObject
         _config.Mappings = ZoneMappings.Select(z => new ZoneMappingConfig
         {
             ZoneType = z.ZoneType,
-            EntityId = z.EntityId
+            EntityId = z.EntityId,
+            DeviceType = z.DeviceType,
+            WledIpAddress = z.WledIpAddress
         }).ToList();
 
         ConfigurationService.Save(_config);

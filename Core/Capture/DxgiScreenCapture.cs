@@ -93,7 +93,15 @@ public sealed class DxgiScreenCapture : IDisposable
     {
         if (!_isInitialized || _deskDupl == null || _context == null || _stagingTexture == null)
         {
-            Initialize();
+            try
+            {
+                Initialize();
+            }
+            catch
+            {
+                _isInitialized = false;
+                return false;
+            }
         }
 
         var result = _deskDupl!.AcquireNextFrame((uint)timeoutMs, out OutduplFrameInfo frameInfo, out IDXGIResource? desktopResource);

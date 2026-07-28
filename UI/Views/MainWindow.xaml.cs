@@ -37,10 +37,17 @@ public partial class MainWindow : Window
         Activate();
     }
 
-    private void ExitApplication()
+    private async void ExitApplication()
     {
         _isExplicitExit = true;
         _trayService?.Dispose();
+
+        if (DataContext is MainViewModel vm && vm.IsRunning)
+        {
+            vm.StopCommand.Execute(null);
+            await System.Threading.Tasks.Task.Delay(300);
+        }
+
         WpfApplication.Current.Shutdown();
     }
 

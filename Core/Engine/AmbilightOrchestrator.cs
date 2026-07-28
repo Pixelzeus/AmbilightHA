@@ -11,9 +11,14 @@ using AmbilightHA.Core.Throttling;
 
 namespace AmbilightHA.Core.Engine;
 
-public record ZoneLightMapping(ScreenZone Zone, string EntityId);
+public record ZoneLightMapping(
+    ScreenZone Zone,
+    string EntityId,
+    LightDeviceType DeviceType = LightDeviceType.HomeAssistant,
+    string WledIpAddress = ""
+);
 
-public sealed class AmbilightOrchestrator : IDisposable
+public sealed class AmbilightOrchestrator : IDisposable, IAsyncDisposable
 {
     private readonly DxgiScreenCapture _capture;
     private readonly ColorProcessor _processor;
@@ -57,6 +62,7 @@ public sealed class AmbilightOrchestrator : IDisposable
         if (_isRunning) return;
 
         Log("Démarrage du moteur Ambilight...");
+        _smoother.Reset();
 
         _wsClient = new HaWebSocketClient(haUrl, haToken);
         _wsClient.OnLogMessage += Log;
@@ -70,9 +76,13 @@ public sealed class AmbilightOrchestrator : IDisposable
             return;
         }
 
-        // Capture des états d'origine des ampoules avant de démarrer la synchronisation
-        var targetEntityIds = Mappings.Select(m => m.EntityId).Where(id => !string.IsNullOrWhiteSpace(id)).Distinct();
-        Log("Capture de la couleur et luminosité d'origine des ampoules...");
+        // Capture des états d'origine des ampoules Home Assistant avant de démarrer la synchronisation
+        var targetEntityIds = Mappings
+            .Where(m => m.DeviceType != LightDeviceType.WledDirectUdp && !string.IsNullOrWhiteSpace(m.EntityId))
+            .Select(m => m.EntityId)
+            .Distinct();
+
+        Log("Capture de la couleur et luminosité d'origine des ampoules HA...");
         _initialLightStates = await _wsClient.FetchInitialLightStatesAsync(targetEntityIds);
 
         _rateLimiter = new LightRateLimiter(_wsClient)
@@ -97,8 +107,14 @@ public sealed class AmbilightOrchestrator : IDisposable
             {
                 int frameDelayMs = (int)(1000.0f / Math.Clamp(TargetFps, 1, 60));
 
+                List<ZoneLightMapping> currentMappings;
+                lock (Mappings)
+                {
+                    currentMappings = Mappings.ToList();
+                }
+
                 var activeZones = new List<ScreenZone>();
-                foreach (var m in Mappings)
+                foreach (var m in currentMappings)
                 {
                     if (!activeZones.Contains(m.Zone))
                         activeZones.Add(m.Zone);
@@ -125,13 +141,18 @@ public sealed class AmbilightOrchestrator : IDisposable
 
                     OnFrameProcessed?.Invoke(colors);
 
-                    foreach (var mapping in Mappings)
+                    foreach (var mapping in currentMappings)
                     {
-                        if (colors.TryGetValue(mapping.Zone.Type, out var rawColor) && !string.IsNullOrWhiteSpace(mapping.EntityId))
+                        if (colors.TryGetValue(mapping.Zone.Type, out var rawColor))
                         {
-                            int targetBrightness = rawColor.CalculateBrightnessLevel(Brightness, Gamma, MinBrightness);
-                            var smoothedColor = _smoother.Smooth(mapping.EntityId, rawColor, alpha: 0.35f);
-                            _rateLimiter?.QueueUpdate(mapping.EntityId, smoothedColor, targetBrightness, TransitionSeconds);
+                            string targetId = mapping.DeviceType == LightDeviceType.WledDirectUdp ? mapping.WledIpAddress : mapping.EntityId;
+                            if (!string.IsNullOrWhiteSpace(targetId))
+                            {
+                                int targetBrightness = rawColor.CalculateBrightnessLevel(Brightness, Gamma, MinBrightness);
+                                string queueKey = $"{mapping.DeviceType}_{targetId}";
+                                var smoothedColor = _smoother.Smooth(queueKey, rawColor, alpha: 0.35f);
+                                _rateLimiter?.QueueUpdate(queueKey, targetId, mapping.DeviceType, smoothedColor, targetBrightness, TransitionSeconds);
+                            }
                         }
                     }
                 }, timeoutMs: 15);
@@ -164,7 +185,11 @@ public sealed class AmbilightOrchestrator : IDisposable
         }
 
         _capture.Dispose();
-        _rateLimiter?.Dispose();
+        if (_rateLimiter != null)
+        {
+            await _rateLimiter.DisposeAsync();
+            _rateLimiter = null;
+        }
 
         if (RestoreLightsOnStop && _wsClient != null && _initialLightStates.Count > 0)
         {
@@ -173,8 +198,6 @@ public sealed class AmbilightOrchestrator : IDisposable
         }
 
         _wsClient?.Dispose();
-
-        _rateLimiter = null;
         _wsClient = null;
 
         Log("Moteur Ambilight arrêté et éclairage restauré.");
@@ -182,8 +205,17 @@ public sealed class AmbilightOrchestrator : IDisposable
 
     private void Log(string message) => OnLog?.Invoke(message);
 
+    public async ValueTask DisposeAsync()
+    {
+        await StopAsync();
+    }
+
     public void Dispose()
     {
-        _ = StopAsync();
+        try
+        {
+            Task.Run(StopAsync).GetAwaiter().GetResult();
+        }
+        catch { }
     }
 }

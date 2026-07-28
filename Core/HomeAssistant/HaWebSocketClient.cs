@@ -22,6 +22,8 @@ public sealed class HaWebSocketClient : IDisposable
     private readonly ConcurrentDictionary<long, TaskCompletionSource<string>> _pendingRequests = new();
     private Task? _receiveTask;
     private bool _isConnected;
+    private readonly SemaphoreSlim _sendSemaphore = new(1, 1);
+    private readonly byte[] _receiveBuffer = new byte[16384];
 
     public bool IsConnected => _isConnected && _client?.State == WebSocketState.Open;
 
@@ -122,10 +124,18 @@ public sealed class HaWebSocketClient : IDisposable
             {
                 break;
             }
-            catch
+            catch (Exception ex)
             {
-                await Task.Delay(10, ct);
+                Log($"[WS Receiver] Exception: {ex.Message}");
+                await Task.Delay(50, ct);
             }
+        }
+
+        if (_isConnected)
+        {
+            _isConnected = false;
+            OnConnectionStateChanged?.Invoke(false);
+            Log("[WS Receiver] Déconnexion détectée.");
         }
     }
 
@@ -315,14 +325,25 @@ public sealed class HaWebSocketClient : IDisposable
     {
         if (_client == null || _client.State != WebSocketState.Open) return;
         byte[] bytes = Encoding.UTF8.GetBytes(message);
-        await _client.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, ct);
+
+        await _sendSemaphore.WaitAsync(ct);
+        try
+        {
+            if (_client != null && _client.State == WebSocketState.Open)
+            {
+                await _client.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, ct);
+            }
+        }
+        finally
+        {
+            _sendSemaphore.Release();
+        }
     }
 
     private async Task<string> ReadSingleMessageAsync(CancellationToken ct)
     {
         if (_client == null) return string.Empty;
-        var buffer = new byte[8192];
-        var segment = new ArraySegment<byte>(buffer);
+        var segment = new ArraySegment<byte>(_receiveBuffer);
 
         using var ms = new System.IO.MemoryStream();
         WebSocketReceiveResult result;
@@ -335,7 +356,7 @@ public sealed class HaWebSocketClient : IDisposable
                 await _client.CloseAsync(WebSocketCloseStatus.NormalClosure, "Fermeture", ct);
                 return string.Empty;
             }
-            ms.Write(buffer, 0, result.Count);
+            ms.Write(_receiveBuffer, 0, result.Count);
         } while (!result.EndOfMessage);
 
         return Encoding.UTF8.GetString(ms.ToArray());
@@ -358,5 +379,6 @@ public sealed class HaWebSocketClient : IDisposable
         _isConnected = false;
         _cts.Cancel();
         DisposeClient();
+        _sendSemaphore.Dispose();
     }
 }

@@ -33,4 +33,6 @@ public class ZoneMappingConfig
 {
     public ZoneType ZoneType { get; set; }
     public string EntityId { get; set; } = "";
+    public LightDeviceType DeviceType { get; set; } = LightDeviceType.HomeAssistant;
+    public string WledIpAddress { get; set; } = "";
 }
