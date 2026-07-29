@@ -42,7 +42,11 @@ public sealed class AmbilightOrchestrator : IDisposable, IAsyncDisposable
     public float TransitionSeconds { get; set; } = 0.2f;
     public int TargetFps { get; set; } = 30;
     public int RateLimitPerBulb { get; set; } = 8;
-    public int DisplayIndex { get; set; } = 0;
+    public int DisplayIndex
+    {
+        get => _capture.DisplayIndex;
+        set => _capture.DisplayIndex = value;
+    }
     public bool RestoreLightsOnStop { get; set; } = true;
 
     public bool IsRunning => _isRunning;

@@ -16,12 +16,27 @@ public partial class ZoneOverlayWindow : Window
         InitializeComponent();
     }
 
-    public void RenderZones(IReadOnlyList<ScreenZone> zones)
+    public void SetTargetDisplay(DisplayInfo? display)
     {
+        if (display != null)
+        {
+            WindowStartupLocation = WindowStartupLocation.Manual;
+            WindowState = WindowState.Normal;
+            Left = display.Bounds.X;
+            Top = display.Bounds.Y;
+            Width = display.Width;
+            Height = display.Height;
+        }
+    }
+
+    public void RenderZones(IReadOnlyList<ScreenZone> zones, DisplayInfo? display = null)
+    {
+        SetTargetDisplay(display);
+
         OverlayCanvas.Children.Clear();
 
-        double screenWidth = SystemParameters.PrimaryScreenWidth;
-        double screenHeight = SystemParameters.PrimaryScreenHeight;
+        double screenWidth = display != null ? display.Width : SystemParameters.PrimaryScreenWidth;
+        double screenHeight = display != null ? display.Height : SystemParameters.PrimaryScreenHeight;
 
         foreach (var zone in zones)
         {

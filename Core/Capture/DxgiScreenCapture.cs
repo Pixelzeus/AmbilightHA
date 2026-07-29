@@ -17,6 +17,19 @@ public sealed class DxgiScreenCapture : IDisposable
     private int _height;
     private bool _isInitialized;
 
+    public int DisplayIndex
+    {
+        get => _displayIndex;
+        set
+        {
+            if (_displayIndex != value)
+            {
+                _displayIndex = value;
+                _isInitialized = false;
+            }
+        }
+    }
+
     public int Width => _width;
     public int Height => _height;
     public bool IsInitialized => _isInitialized;

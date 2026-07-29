@@ -23,6 +23,12 @@
         <Border Grid.Row="0" Background="{StaticResource BgCard}" CornerRadius="8" Padding="16" Margin="0,0,0,16">
             <DockPanel>
                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                    <!-- Picker d'Écran -->
+                    <StackPanel Orientation="Horizontal" Margin="0,0,16,0" VerticalAlignment="Center">
+                        <TextBlock Text="🖥️ Écran:" Foreground="{StaticResource TextSecondary}" VerticalAlignment="Center" Margin="0,0,6,0" FontWeight="SemiBold"/>
+                        <ComboBox ItemsSource="{Binding AvailableDisplays}" SelectedItem="{Binding SelectedDisplay}" DisplayMemberPath="Name" Width="240" VerticalAlignment="Center" ToolTip="Sélectionner l'écran à capturer (Multi-Écrans)"/>
+                    </StackPanel>
+
                     <TextBlock Text="{Binding StatusMessage}" Foreground="{StaticResource TextSecondary}" VerticalAlignment="Center" Margin="0,0,16,0" FontWeight="SemiBold"/>
                     <Button Content="▶ DÉMARRER" Command="{Binding StartCommand}" Background="{StaticResource SuccessColor}" Foreground="White" Padding="16,8" FontWeight="Bold" Margin="0,0,8,0" Cursor="Hand"/>
                     <Button Content="⏹ ARRÊTER" Command="{Binding StopCommand}" Background="{StaticResource DangerColor}" Foreground="White" Padding="16,8" FontWeight="Bold" Cursor="Hand"/>
@@ -187,7 +193,11 @@
                         <!-- Carte Réglages Image & Performance -->
                         <Border Grid.Column="1" Background="{StaticResource BgCard}" CornerRadius="8" Padding="16" Margin="8,0,0,0">
                             <StackPanel>
-                                <TextBlock Text="🎨 Réglages Couleurs &amp; Performance" FontWeight="Bold" FontSize="14" Margin="0,0,0,12" Foreground="{StaticResource AccentColor}"/>
+                                <TextBlock Text="🎨 Réglages Couleurs &amp; Écran" FontWeight="Bold" FontSize="14" Margin="0,0,0,12" Foreground="{StaticResource AccentColor}"/>
+
+                                <!-- Sélection Écran Cible -->
+                                <TextBlock Text="🖥️ Écran à Capturer (Multi-Écrans):" FontSize="11" Foreground="{StaticResource TextSecondary}" Margin="0,0,0,4"/>
+                                <ComboBox ItemsSource="{Binding AvailableDisplays}" SelectedItem="{Binding SelectedDisplay}" DisplayMemberPath="Name" Background="#15151C" Foreground="White" Padding="8" Margin="0,0,0,10" ToolTip="Choix de l'écran principal ou secondaire pour la capture d'image temps réel DXGI"/>
 
                                 <!-- Mode d'Analyse -->
                                 <TextBlock Text="Mode d'Analyse des Couleurs:" FontSize="11" Foreground="{StaticResource TextSecondary}" Margin="0,0,0,4"/>

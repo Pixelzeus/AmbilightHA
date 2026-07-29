@@ -60,8 +60,10 @@ public class MainViewModel : ObservableObject
     private string _statusMessage = "Prêt.";
     private string _logText = "";
 
+    private DisplayInfo? _selectedDisplay;
+
     public ObservableCollection<ZoneMappingItemViewModel> ZoneMappings { get; } = new();
-    public ObservableCollection<int> AvailableDisplays { get; } = new() { 0, 1, 2 };
+    public ObservableCollection<DisplayInfo> AvailableDisplays { get; } = new();
     public ObservableCollection<AnalysisModeOption> AvailableAnalysisModes { get; } = new()
     {
         new AnalysisModeOption(ColorAnalysisMode.VibrantAccent, "🎨 Couleur d'Accent (Filtre les gris / Recommandé Gaming)"),
@@ -83,7 +85,31 @@ public class MainViewModel : ObservableObject
     public int DisplayIndex
     {
         get => _displayIndex;
-        set => SetProperty(ref _displayIndex, value);
+        set
+        {
+            if (SetProperty(ref _displayIndex, value))
+            {
+                _orchestrator.DisplayIndex = value;
+                var disp = AvailableDisplays.FirstOrDefault(d => d.Index == value);
+                if (disp != null && _selectedDisplay != disp)
+                {
+                    _selectedDisplay = disp;
+                    OnPropertyChanged(nameof(SelectedDisplay));
+                }
+            }
+        }
+    }
+
+    public DisplayInfo? SelectedDisplay
+    {
+        get => _selectedDisplay;
+        set
+        {
+            if (SetProperty(ref _selectedDisplay, value) && value != null)
+            {
+                DisplayIndex = value.Index;
+            }
+        }
     }
 
     public AnalysisModeOption SelectedAnalysisMode
@@ -253,6 +279,8 @@ public class MainViewModel : ObservableObject
         _orchestrator.OnLog += AppendLog;
         _orchestrator.OnFrameProcessed += UpdatePreviewColors;
 
+        DetectDisplays();
+
         _config = ConfigurationService.Load();
         LoadConfigValues();
 
@@ -265,11 +293,35 @@ public class MainViewModel : ObservableObject
         RemoveEntityCommand = new RelayCommand<ZoneMappingItemViewModel>(RemoveEntity);
     }
 
+    private void DetectDisplays()
+    {
+        AvailableDisplays.Clear();
+        try
+        {
+            var screens = System.Windows.Forms.Screen.AllScreens;
+            for (int i = 0; i < screens.Length; i++)
+            {
+                var s = screens[i];
+                AvailableDisplays.Add(new DisplayInfo(i, s.DeviceName, s.Bounds, s.Primary));
+            }
+        }
+        catch { }
+
+        if (AvailableDisplays.Count == 0)
+        {
+            AvailableDisplays.Add(new DisplayInfo(0, "Primary Display", new System.Drawing.Rectangle(0, 0, 1920, 1080), true));
+        }
+
+        SelectedDisplay = AvailableDisplays.FirstOrDefault(d => d.Index == DisplayIndex) ?? AvailableDisplays[0];
+    }
+
     private void LoadConfigValues()
     {
         HaUrl = _config.HaUrl;
         HaToken = _config.HaToken;
         DisplayIndex = _config.DisplayIndex;
+
+        SelectedDisplay = AvailableDisplays.FirstOrDefault(d => d.Index == _config.DisplayIndex) ?? AvailableDisplays[0];
 
         SelectedAnalysisMode = AvailableAnalysisModes.FirstOrDefault(m => m.Mode == _config.Mode) ?? AvailableAnalysisModes[0];
         AccentWeightExponent = _config.AccentWeightExponent;
@@ -437,10 +489,10 @@ public class MainViewModel : ObservableObject
         {
             _overlayWindow = new ZoneOverlayWindow();
             var zones = ScreenZone.CreateDefaultZones();
-            _overlayWindow.RenderZones(zones);
+            _overlayWindow.RenderZones(zones, SelectedDisplay);
             _overlayWindow.Show();
             IsOverlayVisible = true;
-            AppendLog("Affichage de la surimpression visuelle des zones.");
+            AppendLog($"Affichage de la surimpression visuelle sur {SelectedDisplay?.Name ?? "l'écran sélectionné"}.");
         }
         else
         {
