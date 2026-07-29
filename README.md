@@ -1,7 +1,7 @@
 # ⚡ AmbilightHA - Ultra-High Performance Gaming Ambilight for Home Assistant & WLED
 
 [![GitHub Release](https://img.shields.io/github/v/release/Pixelzeus/AmbilightHA?style=for-the-badge&color=6C5CE7)](https://github.com/Pixelzeus/AmbilightHA/releases/latest)
-[![Download Zip](https://img.shields.io/badge/Download-Release%20v1.1.0%20(win--x64)-00B894?style=for-the-badge&logo=windows)](https://github.com/Pixelzeus/AmbilightHA/releases/download/v1.1.0/AmbilightHA-v1.1.0-win-x64.zip)
+[![Download Zip](https://img.shields.io/badge/Download-Release%20v1.2.0%20(win--x64)-00B894?style=for-the-badge&logo=windows)](https://github.com/Pixelzeus/AmbilightHA/releases/download/v1.2.0/AmbilightHA-v1.2.0-win-x64.zip)
 [![License MIT](https://img.shields.io/badge/License-MIT-blue.style=for-the-badge)](LICENSE)
 
 **AmbilightHA** is a lightweight, ultra-high performance Windows desktop application built with **C# / .NET 9 (WPF)**. It captures your screen in real time with minimal latency, performs intelligent color extraction, and synchronizes ambient lighting across Home Assistant smart bulbs and WLED controllers via native WebSockets or direct UDP streams with built-in mesh network rate limiting.
@@ -10,12 +10,17 @@
 
 ## 📦 Direct Download
 
-👉 **[Download AmbilightHA v1.1.0 Standalone Executable (zip)](https://github.com/Pixelzeus/AmbilightHA/releases/download/v1.1.0/AmbilightHA-v1.1.0-win-x64.zip)**
+👉 **[Download AmbilightHA v1.2.0 Standalone Executable (zip)](https://github.com/Pixelzeus/AmbilightHA/releases/download/v1.2.0/AmbilightHA-v1.2.0-win-x64.zip)**
 *(Self-contained single executable — no .NET installation required!)*
 
 ---
 
 ## ✨ Key Features
+
+* **🖥️ Dynamic Multi-Screen & Monitor Selection**:
+  * **Multi-Monitor Setup**: Automatically detects all connected displays (Primary, Secondary, Tertiary) with screen resolutions and relative coordinates (`DisplayInfo`).
+  * **Dynamic DXGI Re-binding**: Seamlessly switch capture output between Monitor 0, Monitor 1, etc., without restarting.
+  * **Targeted Zone Overlay**: Visual boundary overlay dynamically places itself on the exact targeted monitor screen bounds.
 
 * **⚡ Zero-Overhead DXGI Desktop Duplication**:
   * Powered by `Vortice.DXGI` & Direct3D 11 staging textures.
